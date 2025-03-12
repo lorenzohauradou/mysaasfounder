@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+            <html lang="it">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>{{ title }}</title>
+                <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+            </head>
+            <body class="bg-gray-50 font-sans">
+                <header class="bg-white shadow-sm">
+                    <div class="container mx-auto px-4 py-6">
+                        <div class="flex justify-between items-center">
+                            <div class="text-2xl font-bold text-gray-800">{{ title }}</div>
+                            <nav>
+                                <ul class="flex space-x-6">
+                                    <li><a href="#features" class="text-gray-600 hover:text-indigo-600">Funzionalità</a></li>
+                                    <li><a href="#testimonials" class="text-gray-600 hover:text-indigo-600">Testimonianze</a></li>
+                                    <li><a href="#contact" class="text-gray-600 hover:text-indigo-600">Contatti</a></li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </header>
+
+                <main>
+                    <!-- Hero Section -->
+                    <section class="py-20 bg-indigo-600 text-white">
+                        <div class="container mx-auto px-4 text-center">
+                            <h1 class="text-5xl font-bold mb-6">{{ headline }}</h1>
+                            <p class="text-xl mb-10 max-w-2xl mx-auto">{{ subheadline }}</p>
+                            <div class="max-w-3xl mx-auto mb-10 text-gray-100">
+                                {{ value_proposition }}
+                            </div>
+                            <a href="#" class="bg-white text-indigo-600 px-8 py-4 rounded-lg font-bold hover:bg-gray-100 transition">
+                                {{ call_to_action }}
+                            </a>
+                        </div>
+                    </section>
+
+                    <!-- Features Section -->
+                    <section id="features" class="py-20 bg-white">
+                        <div class="container mx-auto px-4">
+                            <h2 class="text-4xl font-bold text-center mb-16">Le nostre funzionalità</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                                {% for feature in features %}
+                                <div class="p-6 bg-gray-50 rounded-lg shadow-sm">
+                                    <h3 class="text-xl font-bold mb-4">{{ feature.title }}</h3>
+                                    <p class="text-gray-600">{{ feature.description }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Testimonials Section -->
+                    <section id="testimonials" class="py-20 bg-gray-50">
+                        <div class="container mx-auto px-4">
+                            <h2 class="text-4xl font-bold text-center mb-16">I nostri clienti dicono</h2>
+                            <div class="max-w-4xl mx-auto">
+                                <div class="bg-white p-8 rounded-lg shadow-sm">
+                                    <p class="text-xl italic mb-6">"{{ testimonial.text }}"</p>
+                                    <div class="flex items-center">
+                                        <div class="w-12 h-12 bg-gray-300 rounded-full mr-4"></div>
+                                        <div>
+                                            <p class="font-bold">{{ testimonial.author }}</p>
+                                            <p class="text-gray-600">{{ testimonial.company }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Contact Section -->
+                    <section id="contact" class="py-20 bg-white">
+                        <div class="container mx-auto px-4 text-center">
+                            <h2 class="text-4xl font-bold mb-10">Pronto per iniziare?</h2>
+                            <a href="#" class="bg-indigo-600 text-white px-8 py-4 rounded-lg font-bold hover:bg-indigo-700 transition">
+                                {{ call_to_action }}
+                            </a>
+                        </div>
+                    </section>
+                </main>
+
+                <footer class="bg-gray-800 text-white py-10">
+                    <div class="container mx-auto px-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                            <div>
+                                <h3 class="text-xl font-bold mb-4">{{ title }}</h3>
+                                <p class="text-gray-400">{{ subheadline }}</p>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-4">Contatti</h3>
+                                <p class="text-gray-400">info@{% if domain %}{{ domain }}{% else %}example.com{% endif %}</p>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-4">Link</h3>
+                                <ul class="text-gray-400">
+                                    <li class="mb-2"><a href="#" class="hover:text-white">Privacy Policy</a></li>
+                                    <li class="mb-2"><a href="#" class="hover:text-white">Termini di Servizio</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="mt-10 pt-10 border-t border-gray-700 text-center text-gray-400">
+                            <p>&copy; {{ title }} {% now 'Y' %}. Tutti i diritti riservati.</p>
+                        </div>
+                    </div>
+                </footer>
+            </body>
+            </html>
+            

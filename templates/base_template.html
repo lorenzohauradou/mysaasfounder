@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <meta name="description" content="{{ description }}">
+    <style>
+        /* Stili di base */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        header {
+            background-color: #f8f9fa;
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .hero {
+            padding: 3rem 0;
+            background-color: #f1f5f9;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 0.25rem;
+            font-weight: 600;
+        }
+        .features {
+            padding: 3rem 0;
+        }
+        footer {
+            background-color: #333;
+            color: white;
+            padding: 2rem 0;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>{{ title }}</h1>
+            <nav>
+                <a href="#features">Funzionalità</a>
+                <a href="#about">Chi siamo</a>
+                <a href="#contact">Contatti</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h2>{{ headline }}</h2>
+            <p>{{ subheadline }}</p>
+            <a href="#" class="btn">{{ call_to_action }}</a>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="container">
+            <h2>Funzionalità principali</h2>
+            <div class="features-grid">
+                {% for feature in features %}
+                <div class="feature">
+                    <h3>{{ feature.title }}</h3>
+                    <p>{{ feature.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; {{ year }} {{ title }}. Tutti i diritti riservati.</p>
+        </div>
+    </footer>
+</body>
+</html>
