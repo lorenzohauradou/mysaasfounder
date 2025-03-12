@@ -129,7 +129,7 @@ class SaaSAutomationAgent:
             )
         
         # 9. Deployment su Vercel
-        logger.info(f"Deployment del progetto su Vercel")
+        logger.info(f"Deployment del progetto su Vercel (con build e push automatico)")
         github_username = self.github.get_username()
         
         # Aggiungiamo un po' di tempo di attesa per assicurarci che GitHub abbia processato tutti i commit
@@ -203,9 +203,9 @@ def main():
     agent = SaaSAutomationAgent()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     saas_info = {
-    "name": "saasfounder",
-    "domain": f"saasfounder-{timestamp}.com",
-    "description": "Una piattaforma innovativa per la creazione rapida ed efficiente di Software as a Service. L'utente non deve più preoccuparsi di comprare il dominio, di configurare l'email, di creare la repository GitHub, di sviluppare la landing page, di configurare il deployment su Vercel e di configurare il DNS. Tutto questo è incluso nel nostro servizio.",
+    "name": "financial-planner",
+    "domain": f"financialplanner{timestamp}.com",
+    "description": "Una piattaforma innovativa per pianificare il tuo futuro finanziario",
     "email": "lorenzooradu@gmail.com"
     }
     result = agent.create_saas(saas_info)

@@ -2,6 +2,10 @@ import logging
 import requests
 import json
 import time
+import subprocess
+import tempfile
+import os
+import shutil
 
 logger = logging.getLogger("SaaSAutomation.VercelIntegration")
 
@@ -309,7 +313,7 @@ class VercelIntegration:
     
     def deploy_from_github(self, github_repo_owner, github_repo_name, domain=None):
         """
-        Processo completo: crea progetto Vercel e collega a GitHub
+        Processo completo: prepara repository, crea progetto Vercel e collega a GitHub
         
         Args:
             github_repo_owner: Proprietario della repository GitHub
@@ -328,14 +332,27 @@ class VercelIntegration:
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
         
+        # Step 0: Prepara il repository (clona, installa, commit e push)
+        logger.info(f"Preparazione del repository {github_repo_owner}/{github_repo_name} prima del deployment...")
+        prep_result = self.prepare_and_push_repository(github_repo_owner, github_repo_name)
+        
+        if not prep_result["success"]:
+            logger.error(f"Errore nella preparazione del repository: {prep_result['message']}")
+            result["error"] = f"Errore preparazione repository: {prep_result['message']}"
+            return result
+            
+        logger.info("Repository preparato con successo, attesa di 15 secondi per l'elaborazione GitHub...")
+        time.sleep(15)  # Attesa per assicurarsi che GitHub abbia elaborato il push
+        
         # Step 1: Crea progetto Vercel
         project = self.create_project(github_repo_name, github_repo_owner, github_repo_name)
         if not project:
+            result["error"] = "Errore nella creazione del progetto Vercel"
             return result
         
         result["project_id"] = project.get("id")
         
-        # Step 2: Attiva esplicitamente un deployment (NOVITÀ)
+        # Step 2: Attiva esplicitamente un deployment
         logger.info("Attivazione esplicita del deployment...")
         deployment_triggered = self.trigger_deployment(project.get("id"), github_repo_owner, github_repo_name)
         if not deployment_triggered:
@@ -412,3 +429,83 @@ class VercelIntegration:
         except Exception as e:
             logger.error(f"Errore durante l'attivazione del deployment: {str(e)}")
             return False
+    
+    def prepare_and_push_repository(self, github_repo_owner, github_repo_name, temp_dir=None):
+        """
+        Clona il repository, installa le dipendenze, esegue commit e push
+        
+        Args:
+            github_repo_owner: Proprietario del repository GitHub
+            github_repo_name: Nome del repository GitHub
+            temp_dir: Directory temporanea (opzionale)
+            
+        Returns:
+            dict: Risultato dell'operazione con stato e messaggi
+        """
+        logger.info(f"Preparazione e push del repository {github_repo_owner}/{github_repo_name}")
+        
+        # Crea directory temporanea se non specificata
+        if not temp_dir:
+            temp_dir = tempfile.mkdtemp(prefix="saas_repo_")
+        
+        try:
+            repo_url = f"https://github.com/{github_repo_owner}/{github_repo_name}.git"
+            
+            # 1. Clona il repository
+            logger.info(f"Clonazione del repository {repo_url} in {temp_dir}")
+            clone_cmd = ["git", "clone", repo_url, temp_dir]
+            subprocess.run(clone_cmd, check=True)
+            
+            # 2. Installa le dipendenze
+            logger.info("Installazione delle dipendenze npm")
+            npm_cmd = ["npm", "install", "--prefer-offline", "--no-audit"]
+            subprocess.run(npm_cmd, check=True, cwd=temp_dir)
+            
+            # 3. Configura Git
+            subprocess.run(["git", "config", "user.name", "SaaS Automation Bot"], cwd=temp_dir, check=True)
+            subprocess.run(["git", "config", "user.email", "bot@example.com"], cwd=temp_dir, check=True)
+            
+            # 4. Esegui git add
+            logger.info("Aggiunta dei file generati al repository")
+            add_cmd = ["git", "add", "."]
+            subprocess.run(add_cmd, check=True, cwd=temp_dir)
+            
+            # 5. Esegui git commit
+            logger.info("Commit dei file generati")
+            commit_cmd = ["git", "commit", "-m", "Build e configurazione automatica"]
+            try:
+                subprocess.run(commit_cmd, check=True, cwd=temp_dir)
+            except subprocess.CalledProcessError:
+                logger.info("Nessun cambiamento da committare, continuo...")
+            
+            # 6. Esegui git push
+            logger.info("Push dei file generati")
+            push_cmd = ["git", "push", "origin", "main"]
+            subprocess.run(push_cmd, check=True, cwd=temp_dir)
+            
+            logger.info("Preparazione e push completati con successo")
+            return {
+                "success": True, 
+                "message": "Repository preparato e push completato"
+            }
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Errore durante l'esecuzione del comando: {str(e)}")
+            return {
+                "success": False,
+                "message": f"Errore nel processo: {str(e)}"
+            }
+        except Exception as e:
+            logger.error(f"Errore durante la preparazione del repository: {str(e)}")
+            return {
+                "success": False,
+                "message": f"Errore generico: {str(e)}"
+            }
+        finally:
+            # Pulizia della directory temporanea
+            try:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                    logger.info(f"Directory temporanea {temp_dir} rimossa")
+            except Exception as e:
+                logger.warning(f"Impossibile rimuovere la directory temporanea: {str(e)}")

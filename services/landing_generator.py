@@ -3,6 +3,8 @@ import requests
 import json
 import os
 import jinja2
+import re
+import copy
 from datetime import datetime
 from anthropic import Anthropic
 from io import BytesIO
@@ -114,6 +116,9 @@ class LandingGenerator:
         title = landing_page.get("title", "Landing Page")
         content = landing_page.get("content", {})
         
+        # Sanifichiamo i contenuti prima di utilizzarli
+        content = self._sanitize_content(content)
+        
         # Estrai i dati dal contenuto generato
         metadata = content.get("metadata", {})
         page_title = metadata.get("title", title)
@@ -177,14 +182,9 @@ Apri [http://localhost:3000](http://localhost:3000) nel tuo browser per vedere i
         # vercel.json
         files["vercel.json"] = json.dumps({
             "version": 2,
-            "framework": "nextjs",
-            "buildCommand": "npm run build",
-            "devCommand": "npm run dev",
-            "installCommand": "npm install",
+            "buildCommand": "npm run build", 
             "outputDirectory": ".next",
-            "regions": ["iad1"],
-            "public": True,
-            "nodeVersion": "18.x"
+            "framework": "nextjs"
         }, indent=2)
         
         # .nvmrc per specificare la versione Node
@@ -777,7 +777,7 @@ module.exports = nextConfig
         """
         logger.info("Verifica dei file essenziali per Next.js")
         
-        # Lista dei file essenziali
+        # Lista dei file veramente essenziali
         essential_files = [
             "package.json",
             "next.config.js",
@@ -785,9 +785,7 @@ module.exports = nextConfig
             "app/layout.jsx",
             "app/globals.css",
             "tailwind.config.js",
-            "postcss.config.js",
-            ".nvmrc",
-            "vercel.json"
+            "postcss.config.js"
         ]
         
         for file in essential_files:
@@ -829,14 +827,131 @@ module.exports = nextConfig
                     files[file] = "module.exports = {\n  content: [\n    './app/**/*.{js,jsx,ts,tsx}',\n    './components/**/*.{js,jsx,ts,tsx}',\n  ],\n  theme: {\n    extend: {},\n  },\n  plugins: [],\n};"
                 elif file == "postcss.config.js":
                     files[file] = "module.exports = {\n  plugins: {\n    tailwindcss: {},\n    autoprefixer: {}\n  }\n};"
-                elif file == ".nvmrc":
-                    files[file] = "18"
-                elif file == "vercel.json":
-                    files[file] = json.dumps({
-                        "version": 2,
-                        "framework": "nextjs",
-                        "buildCommand": "npm run build",
-                        "outputDirectory": ".next"
-                    }, indent=2)
+        
+        # Verifica se esiste vercel.json, in caso contrario crealo con configurazione minima
+        if "vercel.json" not in files:
+            logger.info("Creazione vercel.json con configurazione minima...")
+            files["vercel.json"] = json.dumps({
+                "version": 2,
+                "buildCommand": "npm run build",
+                "outputDirectory": ".next",
+                "framework": "nextjs"
+            }, indent=2)
         
         return files
+
+    def _sanitize_content(self, content):
+        """
+        Sanitizza i contenuti generati da AI per evitare problemi di formattazione nel JSX
+        mantenendo il più possibile il contenuto originale
+        
+        Args:
+            content: Dizionario con i contenuti generati
+            
+        Returns:
+            dict: Dizionario con i contenuti sanitizzati
+        """
+        if not content:
+            return content
+            
+        # Copia il contenuto per non modificare l'originale
+        sanitized = copy.deepcopy(content)
+        
+        # Funzione per sanitizzare stringhe di testo
+        def sanitize_text(text, max_length=None):
+            if not text or not isinstance(text, str):
+                return ""
+                
+            # Rimuovi markdown (manteniamo solo la formattazione base)
+            text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Bold
+            text = re.sub(r'\*(.*?)\*', r'\1', text)      # Italic
+            text = re.sub(r'__(.*?)__', r'\1', text)      # Bold
+            text = re.sub(r'_(.*?)_', r'\1', text)        # Italic
+            text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)  # Code blocks
+            text = re.sub(r'`(.*?)`', r'\1', text)        # Inline code
+            
+            # Escapa virgolette (questo è essenziale per evitare errori JS)
+            text = text.replace('"', '\\"')
+            
+            # Rimuovi caratteri che causano problemi in JavaScript
+            text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+            
+            # Compatta spazi multipli
+            text = re.sub(r'\s+', ' ', text)
+            
+            # Tronca solo se specificamente richiesto e se supera significativamente la lunghezza massima
+            if max_length and len(text) > max_length:
+                text = text[:max_length-3] + "..."
+                
+            return text.strip()
+            
+        # Sanitizza sezioni specifiche con limiti di lunghezza appropriati
+        if "hero" in sanitized:
+            # Per l'headline manteniamo conciso
+            if "headline" in sanitized["hero"]:
+                sanitized["hero"]["headline"] = sanitize_text(sanitized["hero"]["headline"], 100)
+            
+            # Per il subheadline permettiamo più spazio
+            if "subheadline" in sanitized["hero"]:
+                sanitized["hero"]["subheadline"] = sanitize_text(sanitized["hero"]["subheadline"], 250)
+            
+            # Per i bottoni CTA manteniamo brevi
+            for field in ["cta_primary", "cta_secondary"]:
+                if field in sanitized["hero"]:
+                    sanitized["hero"][field] = sanitize_text(sanitized["hero"][field], 30)
+        
+        # Sanitizza metadati mantenendo lunghezze ragionevoli
+        if "metadata" in sanitized:
+            if "title" in sanitized["metadata"]:
+                sanitized["metadata"]["title"] = sanitize_text(sanitized["metadata"]["title"], 60)
+            if "description" in sanitized["metadata"]:
+                sanitized["metadata"]["description"] = sanitize_text(sanitized["metadata"]["description"], 160)
+        
+        # Sanitizza sezioni CTA e footer
+        if "cta_section" in sanitized:
+            if "headline" in sanitized["cta_section"]:
+                sanitized["cta_section"]["headline"] = sanitize_text(sanitized["cta_section"]["headline"], 100)
+            if "subheadline" in sanitized["cta_section"]:
+                sanitized["cta_section"]["subheadline"] = sanitize_text(sanitized["cta_section"]["subheadline"], 200)
+            if "cta" in sanitized["cta_section"]:
+                sanitized["cta_section"]["cta"] = sanitize_text(sanitized["cta_section"]["cta"], 30)
+        
+        if "footer" in sanitized:
+            for field in sanitized["footer"]:
+                sanitized["footer"][field] = sanitize_text(sanitized["footer"][field], 200)
+        
+        # Sanitizza array di oggetti (features, testimonial, pricing)
+        # Per le features lasciamo descrizioni più lunghe
+        if "features" in sanitized and isinstance(sanitized["features"], list):
+            for item in sanitized["features"]:
+                if "title" in item:
+                    item["title"] = sanitize_text(item["title"], 50)
+                if "description" in item:
+                    item["description"] = sanitize_text(item["description"], 300)
+                if "icon" in item:
+                    item["icon"] = sanitize_text(item["icon"], 20)
+        
+        # Per le testimonianze permettiamo testi più lunghi
+        if "testimonials" in sanitized and isinstance(sanitized["testimonials"], list):
+            for item in sanitized["testimonials"]:
+                if "quote" in item:
+                    item["quote"] = sanitize_text(item["quote"], 350)
+                if "author" in item:
+                    item["author"] = sanitize_text(item["author"], 50)
+                if "company" in item:
+                    item["company"] = sanitize_text(item["company"], 50)
+                if "role" in item:
+                    item["role"] = sanitize_text(item["role"], 50)
+        
+        # Per i piani di prezzo
+        if "pricing" in sanitized and isinstance(sanitized["pricing"], list):
+            for item in sanitized["pricing"]:
+                for field in ["name", "price", "description", "cta"]:
+                    if field in item:
+                        item[field] = sanitize_text(item[field], 100)
+                
+                # Sanitizza le feature list
+                if "features" in item and isinstance(item["features"], list):
+                    item["features"] = [sanitize_text(f, 100) if isinstance(f, str) else f for f in item["features"]]
+        
+        return sanitized
